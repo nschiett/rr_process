@@ -3,17 +3,16 @@ library(sp)
 library(sf)
 library(raster)
 library(dplyr)
+library(stringr)
 
-# test 2b
-lat_stake <- 21.459504
-lon_stake <- -157.797441
+## functions
 
 reproject_dem <- function(file, lat_stake, lon_stake) {
   
   # name
   name <- strsplit(file, split = "\\.")[[1]][1]
   # load
-  dem <- raster(paste0("data/", file))
+  dem <- raster(paste0("data/rasters/", file))
   
   # New projection using the stake as center
   sr <- paste0("+proj=tmerc +lat_0=", lat_stake, " +lon_0=", lon_stake, 
@@ -22,22 +21,22 @@ reproject_dem <- function(file, lat_stake, lon_stake) {
   dem2 <- projectRaster(dem, crs = sr)
   dem3 <- dem_crop(dem2, 0, 0, L = 8)
   
-  writeRaster(dem3, paste0("output/rasters/", name, "_reproj_square.tif"))
+  writeRaster(dem3, paste0("output/rasters/", name, "_reproj_square.tif"), overwrite = TRUE)
   
 }
+
 
 reproject_ortho <- function(file, lat_stake, lon_stake) {
   
   # name
   name <- strsplit(file, split = "\\.")[[1]][1]
   # load
-  ortho <- stack(paste0("data/", file))
+  ortho <- stack(paste0("data/rasters/", file))
   
   # New projection using the stake as center
   sr <- paste0("+proj=tmerc +lat_0=", lat_stake, " +lon_0=", lon_stake, 
                " +k=1 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs")
   
-  ortho <- stack("data/rr_2023_2b_ortho.tif")
   ortho2 <- projectRaster(ortho, crs = sr)
   rm(ortho)
   
@@ -90,8 +89,39 @@ reproject_ortho <- function(file, lat_stake, lon_stake) {
   
   dev.off() 
   
-
 }
+
+
+#### apply to all ###
+files <- list.files("data/rasters")
+files_dem <- str_subset(files, "DEM")
+files_ortho <- str_subset(files, "ortho")
+
+stakes <- read.csv("data/rr_kbay_stakes_coord.csv")
+
+### dems
+for (i in 1:length(files_dem)) {
+  print(i)
+  f <- files_dem[i]
+  site <- strsplit(f, "_")[[1]][3]
+  print(site)
+  lat <- stakes[stakes$site == site, "latitude"]
+  long <- stakes[stakes$site == site, "longitude"]
+  reproject_dem(f, lat, long)
+}
+
+### ortho
+for (i in 1:length(files_ortho)) {
+  print(i)
+  f <- files_ortho[i]
+  site <- strsplit(f, "_")[[1]][3]
+  print(site)
+  lat <- stakes[stakes$site == site, "latitude"]
+  long <- stakes[stakes$site == site, "longitude"]
+  reproject_ortho(f, lat, long)
+}
+
+
 
 
 
